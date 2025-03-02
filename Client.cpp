@@ -6,6 +6,8 @@
 #include <cstdlib>		// exit()
 #include <netdb.h>		// gethostbyname(), connect(), send(), recv()
 #include <unistd.h>
+#include <pthread.h>   
+
 
 using std::cerr;
 using std::cout;
@@ -33,6 +35,46 @@ int NumOfBytesSent;
 int NumOfBytesReceived;
 // ********************************************************************************************************
 
+
+// Thread function for receiving messages
+void *receive_messages(void *arg) {
+    int client_socket = *((int *)arg);
+    while (true) {
+        // Blocking receive to get data from server
+        NumOfBytesReceived = recv(client_socket, Buffer, MAXBUFFERSIZE-1, 0);
+        if (NumOfBytesReceived <= 0) {
+            if (NumOfBytesReceived == 0) {
+                cout << "Server disconnected." << endl;
+            } else {
+                perror("recv() failed");
+            }
+            break;
+        }
+        Buffer[NumOfBytesReceived] = '\0';  // Null-terminate the received message
+        cout << "Server says: " << Buffer << endl;
+    }
+    return NULL;
+}
+
+// Thread function for sending messages
+void *send_messages(void *arg) {
+    int client_socket = *((int *)arg);
+    char message[MAXBUFFERSIZE];
+    while (true) {
+        cout << "Enter message to send to server: ";
+        std::cin.getline(message, MAXBUFFERSIZE);
+
+        // Send user input to server
+        NumOfBytesSent = send(client_socket, message, strlen(message), 0);
+        if (NumOfBytesSent < 0) {
+            perror("send() failed");
+            break;
+        }
+    }
+    return NULL;
+}
+
+
 int main (int argc, char *argv[])
 {
 	// Standard error checking. Must provide server name/IP and port to connect.
@@ -57,29 +99,47 @@ int main (int argc, char *argv[])
 	ClientAddress.sin_port = htons (CLIENTPORT);		// Client port.
 	fill ((char*)&(ClientAddress.sin_zero), (char*)&(ClientAddress.sin_zero)+8, '\0');
 
+
 	// bind()
-	bind (ClientSocketFD, (sockaddr *)&ClientAddress, sizeof (ClientAddress));
+    if (bind(ClientSocketFD, (sockaddr *)&ClientAddress, sizeof(ClientAddress)) < 0) {
+        perror("Failed to bind");
+        close(ClientSocketFD);
+        exit(-1);
+    }
 
-	// Initializing Server address to connect to.
-	ServerAddress.sin_family = AF_INET;							// Socket family.
-	ServerAddress.sin_addr = *((in_addr *)(*he).h_addr);	// Server name/IP.
-	ServerAddress.sin_port = htons (atoi (argv[2]));			// Server port provided as argument.
-	fill ((char*)&(ServerAddress.sin_zero), (char*)&(ServerAddress.sin_zero)+8, '\0');
+    // Initializing server address to connect to
+    ServerAddress.sin_family = AF_INET;
+    ServerAddress.sin_addr = *((in_addr *)(*he).h_addr);
+    ServerAddress.sin_port = htons(atoi(argv[2]));  // Server port provided as argument
+    fill((char*)&(ServerAddress.sin_zero), (char*)&(ServerAddress.sin_zero) + 8, '\0');
 
-	// Connecting to the server.
-	connect (ClientSocketFD, (sockaddr *)&ServerAddress, sizeof (ServerAddress));
+    // Connecting to server
+    if (connect(ClientSocketFD, (sockaddr *)&ServerAddress, sizeof(ServerAddress)) < 0) {
+        perror("Failed to connect to server");
+        close(ClientSocketFD);
+        exit(-1);
+    }
 
-	// send()
-	char ClientMessage[] = "Hello from client.";
-	NumOfBytesSent = send (ClientSocketFD, ClientMessage, strlen (ClientMessage), 0);
+    cout << "Connected to server at " << argv[1] << ":" << argv[2] << endl;
 
-	// recv() is blocking and will wait for any messages.
-	NumOfBytesReceived = recv (ClientSocketFD, Buffer, MAXBUFFERSIZE-1, 0);		// Blocking
-	Buffer[NumOfBytesReceived] = '\0';
-	cout << "Server says: " << Buffer << endl;
+    pthread_t receive_thread, send_thread;
 
-	// Close client socket and exit.
-	close (ClientSocketFD);
-	return 0;
+    if (pthread_create(&receive_thread, NULL, receive_messages, (void*)&ClientSocketFD) != 0) {
+        perror("Failed to create receive thread");
+        close(ClientSocketFD);
+        exit(-1);
+    }
+
+    if (pthread_create(&send_thread, NULL, send_messages, (void*)&ClientSocketFD) != 0) {
+        perror("Failed to create send thread");
+        close(ClientSocketFD);
+        exit(-1);
+    }
+
+    pthread_join(receive_thread, NULL);
+    pthread_join(send_thread, NULL);
+
+    close(ClientSocketFD);
+    return 0;
 }
-
+// ********************************************************************************************************

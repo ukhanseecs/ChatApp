@@ -3,7 +3,7 @@
 #include <cstdlib>     // exit()
 #include <netdb.h>     // gethostbyname(), connect(), send(), recv()
 #include <unistd.h>    // close(), sleep()
-#include <pthread.h>   // pthread_create(), pthread_join()
+#include <pthread.h>   
 
 using std::cerr;
 using std::cout;
