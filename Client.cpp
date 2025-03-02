@@ -36,35 +36,31 @@ int NumOfBytesReceived;
 // ********************************************************************************************************
 
 
-// Thread function for receiving messages
 void *receive_messages(void *arg) {
     int client_socket = *((int *)arg);
     while (true) {
-        // Blocking receive to get data from server
         NumOfBytesReceived = recv(client_socket, Buffer, MAXBUFFERSIZE-1, 0);
         if (NumOfBytesReceived <= 0) {
             if (NumOfBytesReceived == 0) {
-                cout << "Server disconnected." << endl;
+                cout << "server disconnected." << endl;
             } else {
                 perror("recv() failed");
             }
             break;
         }
-        Buffer[NumOfBytesReceived] = '\0';  // Null-terminate the received message
-        cout << "Server says: " << Buffer << endl;
+        Buffer[NumOfBytesReceived] = '\0';  
+        cout << "server says: " << Buffer << endl;
     }
     return NULL;
 }
 
-// Thread function for sending messages
 void *send_messages(void *arg) {
     int client_socket = *((int *)arg);
     char message[MAXBUFFERSIZE];
     while (true) {
-        cout << "Enter message to send to server: ";
+        cout << "enter message to send to server: ";
         std::cin.getline(message, MAXBUFFERSIZE);
 
-        // Send user input to server
         NumOfBytesSent = send(client_socket, message, strlen(message), 0);
         if (NumOfBytesSent < 0) {
             perror("send() failed");

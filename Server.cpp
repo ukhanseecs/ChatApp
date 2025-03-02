@@ -38,6 +38,8 @@ int  NumOfBytesSent;
 int ServerPort;
 int Yes = 1;
 socklen_t sin_size;
+
+
 // ******************************************************************************************************
 void *receive_messages(void *arg) {
     int client_socket = *((int *)arg);
@@ -45,27 +47,25 @@ void *receive_messages(void *arg) {
         NumOfBytesReceived = recv(client_socket, Buffer, MAXBUFFERSIZE-1, 0);
         if (NumOfBytesReceived <= 0) {
             if (NumOfBytesReceived == 0) {
-                cout << "Client disconnected." << endl;
+                cout << "client disconnected." << endl;
             } else {
                 perror("recv() failed");
             }
             break;
         }
         Buffer[NumOfBytesReceived] = '\0';
-        cout << "Client says: " << Buffer << endl;
+        cout << "client says: " << Buffer << endl;
     }
     return NULL;
 }
 
-// Function to handle sending messages
 void *send_messages(void *arg) {
     int client_socket = *((int *)arg);
     char message[MAXBUFFERSIZE];
     while (true) {
-        cout << "Enter message to send to client: ";
+        cout << "enter message to send to client: ";
         std::cin.getline(message, MAXBUFFERSIZE);
 
-        // Send user input to client
         NumOfBytesSent = send(client_socket, message, strlen(message), 0);
         if (NumOfBytesSent < 0) {
             perror("send() failed");
@@ -120,7 +120,6 @@ int main (int argc, char **argv)
 
     cout << "*** Server got connection from " << inet_ntoa(ClientAddress.sin_addr) << " on socket '" << ClientSocketFD << "' ***" << endl;
 
-    // Create threads for receiving and sending messages
     pthread_t receive_thread, send_thread;
     if (pthread_create(&receive_thread, NULL, receive_messages, (void*)&ClientSocketFD) != 0) {
         perror("Failed to create receive thread");
@@ -136,11 +135,9 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    // Wait for threads to finish
     pthread_join(receive_thread, NULL);
     pthread_join(send_thread, NULL);
 
-    // Close connection
     close(ClientSocketFD);
     close(ServerSocketFD);
     return 0;
